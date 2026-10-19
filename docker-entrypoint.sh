@@ -1,16 +1,20 @@
 #!/bin/sh
 set -e
 
-until psql $DATABASE_URL -c '\q'; do
+until psql "$DATABASE_URL" -c '\q'; do
   >&2 echo "Postgres is unavailable - sleeping"
   sleep 1
 done
 
 >&2 echo "Postgres is up - continuing"
 
-if [ "$1" = '/venv/bin/uwsgi' ]; then
+# Run migrations when starting the app server. The Dockerfile's CMD is "uwsgi"
+# (resolved via PATH), but platforms may also pass the full path, so match both.
+case "$1" in
+  uwsgi|/venv/bin/uwsgi)
     /venv/bin/python manage.py migrate --noinput
-fi
+    ;;
+esac
 
 if [ "x$DJANGO_LOAD_INITIAL_DATA" = 'xon' ]; then
     # Only load the demo data when the database is empty. Re-running load_initial_data
